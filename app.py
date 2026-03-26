@@ -1,61 +1,145 @@
 import streamlit as st
+
 import yfinance as yf
+
+import google.generativeai as genai
+
 from datetime import datetime
 
-# Page Settings
-st.set_page_config(page_title="RUDRA TERMINAL", layout="wide")
 
-# --- PREMIUM CSS ---
+
+# --- SETTINGS ---
+
+GOOGLE_API_KEY = "AIzaSyD-87JD7e4vkpZlp6dLExEIXoyIaHcWQEw" # <-- Apni Key Yahan Dalein
+
+genai.configure(api_key=GOOGLE_API_KEY)
+
+model = genai.GenerativeModel('gemini-pro')
+
+
+
+st.set_page_config(page_title="RUDRA AI TERMINAL", layout="wide")
+
+
+
+# --- UI STYLE ---
+
 st.markdown("""
+
     <style>
-    .main { background-color: #0b0e11; color: #ffffff; }
-    .stTabs [data-baseweb="tab-list"] { background-color: #161b22; padding: 10px; border-radius: 8px; }
-    .price-card { background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; text-align: center; }
-    .news-card { border-left: 4px solid #3b82f6; background: #161b22; padding: 20px; margin-bottom: 15px; border-radius: 0 10px 10px 0; }
-    .up { color: #39d353; font-weight: bold; }
-    .down { color: #f85149; font-weight: bold; }
+
+    .main { background-color: #0b0e11; color: white; }
+
+    .ai-blog-card { 
+
+        background: #161b22; 
+
+        padding: 30px; 
+
+        border-radius: 15px; 
+
+        border-left: 5px solid #3b82f6;
+
+        margin-bottom: 25px;
+
+        line-height: 1.8;
+
+    }
+
+    .badge { background: #3b82f6; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+
     </style>
+
     """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='color: #3b82f6;'>⚡ RUDRA TERMINAL</h1>", unsafe_allow_html=True)
-st.caption(f"Market Sync: {datetime.now().strftime('%d %b %Y | %H:%M:%S')}")
 
-# --- MARKET DATA TABS ---
-t1, t2, t3 = st.tabs(["EQUITY", "COMMODITY", "GLOBAL"])
 
-def load_market(assets, tab_obj, unit="₹"):
-    with tab_obj:
-        cols = st.columns(len(assets))
-        for i, (name, sym) in enumerate(assets.items()):
-            try:
-                d = yf.Ticker(sym).history(period="2d")
-                price = d['Close'].iloc[-1]
-                chg = price - d['Close'].iloc[-2]
-                pct = (chg / d['Close'].iloc[-2]) * 100
-                clr = "up" if chg >= 0 else "down"
-                with cols[i]:
-                    st.markdown(f"""<div class="price-card">
-                        <div style='color:#8b949e; font-size:12px;'>{name}</div>
-                        <div style='font-size:22px; font-weight:bold;'>{unit}{price:,.2f}</div>
-                        <div class="{clr}">{'▲' if chg>=0 else '▼'} {pct:.2f}%</div>
-                    </div>""", unsafe_allow_html=True)
-            except: pass
+st.title("⚡ RUDRA AI: Smart Market Terminal")
 
-load_market({"Nifty 50": "^NSEI", "Sensex": "^BSESN", "Bank Nifty": "^NSEBANK"}, t1)
-load_market({"Gold": "GC=F", "Silver": "SI=F", "Crude": "CL=F"}, t2, "$")
-load_market({"Dow Jones": "^DJI", "Nasdaq": "^IXIC", "FTSE 100": "^FTSE"}, t3, "")
 
-# --- AUTOMATIC BLOG FEED ---
+
+# --- 1. LIVE TICKER (Short version) ---
+
+st.subheader("📊 Live Snapshot")
+
+cols = st.columns(3)
+
+indices = {"NIFTY 50": "^NSEI", "SENSEX": "^BSESN", "GOLD": "GC=F"}
+
+for i, (name, sym) in enumerate(indices.items()):
+
+    p = yf.Ticker(sym).history(period="1d")['Close'].iloc[-1]
+
+    cols[i].metric(name, f"{p:,.2f}")
+
+
+
 st.markdown("---")
-st.subheader("📰 Market Insights & Updates")
+
+
+
+# --- 2. AI AUTO-BLOG GENERATOR ---
+
+st.subheader("✍️ AI Generated Market Analysis")
+
+
+
+def generate_ai_content(headline):
+
+    prompt = f"Write a professional financial blog post in Hinglish (Hindi + English) about this news headline: '{headline}'. Include an introduction, market impact, and a conclusion. Keep it around 300 words. Do not use bold symbols like **."
+
+    response = model.generate_content(prompt)
+
+    return response.text
+
+
+
 try:
-    news = yf.Ticker("^NSEI").news
-    for n in news[:6]:
-        dt = datetime.fromtimestamp(n['providerPublishTime']).strftime('%d %b | %I:%M %p')
-        st.markdown(f"""<div class="news-card">
-            <small style='color:#768390;'>📅 {dt} | Source: {n['provider']}</small>
-            <h3 style='margin:10px 0; font-size:20px;'>{n['title']}</h3>
-            <p style='color:#8b949e;'>RUDRA Intelligence: Analysis suggests monitoring these trends for potential breakouts.</p>
-            <a href="{n['link']}" target="_blank" style='color:#3b82f6; text-decoration:none; font-weight:bold;'>Full Analysis →</a>
-        </div>""", unsafe_allow_html=True)
-except: st.error("Updating Feed...")
+
+    # Latest News uthana
+
+    news_item = yf.Ticker("^NSEI").news[0]
+
+    headline = news_item['title']
+
+    
+
+    with st.spinner('RUDRA AI is writing a fresh article for you...'):
+
+        ai_article = generate_ai_content(headline)
+
+    
+
+    # Displaying the AI Blog
+
+    st.markdown(f"""
+
+        <div class="ai-blog-card">
+
+            <span class="badge">AI GENERATED ARTICLE</span>
+
+            <p style='color: #768390; margin-top:10px;'>📅 {datetime.now().strftime('%d %b %Y | %I:%M %p')}</p>
+
+            <h1 style='color: #58a6ff; font-size: 28px;'>{headline}</h1>
+
+            <hr style='border: 0.1px solid #30363d;'>
+
+            <div style='font-size: 17px; color: #adbac7;'>
+
+                {ai_article}
+
+            </div>
+
+            <br>
+
+            <p style='font-size: 14px; color: #3b82f6;'>Source: Financial Data Feed & RUDRA Intelligence</p>
+
+        </div>
+
+    """, unsafe_allow_html=True)
+
+
+
+except Exception as e:
+
+    st.warning("AI is taking a break. Refresh in 1 minute!")
